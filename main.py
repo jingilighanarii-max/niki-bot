@@ -4,12 +4,13 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")   # ← درست شد
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 client = OpenAI(
     api_key=OPENROUTER_API_KEY,
     base_url="https://openrouter.ai/api/v1",
 )
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -17,6 +18,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "من نیکی هستم.\n\n"
         "توی گروه فقط وقتی صدام کنی یا بهم ریپلای کنی جواب می‌دم."
     )
+
 
 def is_bot_called(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     message = update.message
@@ -29,7 +31,7 @@ def is_bot_called(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     if message.entities:
         for entity in message.entities:
             if entity.type == "mention":
-                mention = text[entity.offset : entity.offset + entity.length]
+                mention = text[entity.offset: entity.offset + entity.length]
                 if bot_username and bot_username in mention:
                     return True
 
@@ -41,6 +43,7 @@ def is_bot_called(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
         return True
 
     return False
+
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
@@ -57,7 +60,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         response = client.chat.completions.create(
-            model="meta-llama/llama-3.1-8b-instruct",   # ← مدل OpenRouter
+            model="meta-llama/llama-3.1-8b-instruct",
             messages=[
                 {
                     "role": "system",
@@ -74,3 +77,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             temperature=0.9,
             max_tokens=1024
         )
+        reply = response.choices[0].message.content
+        await update.message.reply_text(reply)
+
+    except Exception as e:
+        await update.message.reply_text(f"خطا پیش اومد:\n{e}")
+
+
+def main():
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    print("نیکی روشن شد...")
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
